@@ -5,7 +5,7 @@ import cors from "cors";
 
 dotenv.config();
 
-const USE_FAKE_AI = true;
+const USE_FAKE_AI = false;
 
 const app = express();
 app.use(cors());

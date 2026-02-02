@@ -1,29 +1,35 @@
 const btn = document.getElementById("btn");
 const input = document.getElementById("promptInput");
+const chat = document.querySelector(".chat");
+const messages = [];
 
-btn.addEventListener("click", () => {
-  send();
-});
+input.focus();
+
+btn.addEventListener("click", send);
 
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") send();
 });
 
-const messages = [];
-
 function addMessage(text, role) {
   let div = document.createElement("div");
-  div.innerText = text;
   div.classList.add(role);
 
-  let chat = document.querySelector(".chat");
-  chat.append(div);
+  if (text === "Typing...") {
+    div.innerText = "Typing...";
+  } else {
+    div.innerHTML = role === "bot" ? marked.parse(text) : text;
+  }
 
+  chat.append(div);
   chat.scrollTop = chat.scrollHeight;
+
+  return div;
 }
 
 async function send() {
-  const chat = document.querySelector(".chat");
+  if (btn.disabled) return;
+
   const text = input.value.trim();
   if (!text) return;
 
@@ -31,7 +37,9 @@ async function send() {
 
   addMessage(text, "user");
   messages.push({ role: "user", content: text });
-  addMessage("Typing...", "bot");
+  if (messages.length > 50) messages.shift();
+
+  const typingBubble = addMessage("Typing...", "bot");
 
   btn.disabled = true;
   input.disabled = true;
@@ -40,18 +48,24 @@ async function send() {
     const res = await fetch("http://localhost:3000/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages: messages.slice(-10) }),
     });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
 
     const data = await res.json();
 
-    chat.lastChild.innerText = data.reply || "⚠️ No response from AI";
+    typingBubble.innerText =
+      data?.reply?.trim() || "⚠️ AI sent an empty response";
 
-    if (data.reply) {
+    if (data?.reply?.trim()) {
       messages.push({ role: "model", content: data.reply });
+      if (messages.length > 50) messages.shift();
     }
   } catch (err) {
-    chat.lastChild.innerText = "❌ Server error";
+    typingBubble.innerText = "❌ Server error";
   } finally {
     btn.disabled = false;
     input.disabled = false;
