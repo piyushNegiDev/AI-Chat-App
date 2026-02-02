@@ -1,8 +1,11 @@
-document.querySelector("#btn").addEventListener("click", () => {
+const btn = document.getElementById("btn");
+const input = document.getElementById("promptInput");
+
+btn.addEventListener("click", () => {
   send();
 });
 
-document.getElementById("promptInput").addEventListener("keydown", (e) => {
+input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") send();
 });
 
@@ -20,7 +23,6 @@ function addMessage(text, role) {
 }
 
 async function send() {
-  const input = document.getElementById("promptInput");
   const chat = document.querySelector(".chat");
   const text = input.value.trim();
   if (!text) return;
@@ -40,13 +42,19 @@ async function send() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),
     });
+
     const data = await res.json();
-    chat.lastChild.innerText = data.reply;
-    messages.push({ role: "model", content: data.reply });
+
+    chat.lastChild.innerText = data.reply || "⚠️ No response from AI";
+
+    if (data.reply) {
+      messages.push({ role: "model", content: data.reply });
+    }
   } catch (err) {
     chat.lastChild.innerText = "❌ Server error";
   } finally {
     btn.disabled = false;
     input.disabled = false;
+    input.focus();
   }
 }
