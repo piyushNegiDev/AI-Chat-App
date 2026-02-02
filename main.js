@@ -11,19 +11,20 @@ input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") send();
 });
 
-function addMessage(text, role) {
-  let div = document.createElement("div");
+function addMessage(text, role, isTyping = false) {
+  const div = document.createElement("div");
   div.classList.add(role);
 
-  if (text === "Typing...") {
+  if (isTyping) {
     div.innerText = "Typing...";
+  } else if (role === "bot") {
+    div.innerHTML = marked.parse(text);
   } else {
-    div.innerHTML = role === "bot" ? marked.parse(text) : text;
+    div.innerText = text;
   }
 
   chat.append(div);
   chat.scrollTop = chat.scrollHeight;
-
   return div;
 }
 
@@ -39,7 +40,16 @@ async function send() {
   messages.push({ role: "user", content: text });
   if (messages.length > 50) messages.shift();
 
-  const typingBubble = addMessage("Typing...", "bot");
+  const typingBubble = addMessage("", "bot", true);
+
+  const lower = text.toLowerCase();
+
+  if (lower.includes("time") && lower.includes("india")) {
+    const reply = getIndiaTimeReply();
+    typingBubble.innerHTML = marked.parse(reply);
+    messages.push({ role: "model", content: reply });
+    return;
+  }
 
   btn.disabled = true;
   input.disabled = true;
@@ -57,12 +67,11 @@ async function send() {
 
     const data = await res.json();
 
-    typingBubble.innerText =
-      data?.reply?.trim() || "⚠️ AI sent an empty response";
+    const reply = data?.reply?.trim() || "⚠️ AI sent an empty response";
+    typingBubble.innerHTML = marked.parse(reply);
 
     if (data?.reply?.trim()) {
       messages.push({ role: "model", content: data.reply });
-      if (messages.length > 50) messages.shift();
     }
   } catch (err) {
     typingBubble.innerText = "❌ Server error";
@@ -71,4 +80,26 @@ async function send() {
     input.disabled = false;
     input.focus();
   }
+}
+
+function getIndiaTimeReply() {
+  const now = new Date();
+
+  const time = now.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const date = now.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  return `The current time in India is **${time}** on **${date}**.
+  
+  India observes Indian Standard Time (IST), which is UTC+5:30.`;
 }
