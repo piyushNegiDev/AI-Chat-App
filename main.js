@@ -2,6 +2,10 @@ document.querySelector("#btn").addEventListener("click", () => {
   send();
 });
 
+document.getElementById("promptInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") send();
+});
+
 const messages = [];
 
 function addMessage(text, role) {
@@ -17,22 +21,32 @@ function addMessage(text, role) {
 
 async function send() {
   const input = document.getElementById("promptInput");
+  const chat = document.querySelector(".chat");
   const text = input.value.trim();
   if (!text) return;
 
   input.value = "";
+
   addMessage(text, "user");
-
   messages.push({ role: "user", content: text });
+  addMessage("Typing...", "bot");
 
-  const res = await fetch("http://localhost:3000/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
-  });
+  btn.disabled = true;
+  input.disabled = true;
 
-  const data = await res.json();
-  addMessage(data.reply, "bot");
-
-  messages.push({ role: "model", content: data.reply });
+  try {
+    const res = await fetch("http://localhost:3000/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    });
+    const data = await res.json();
+    chat.lastChild.innerText = data.reply;
+    messages.push({ role: "model", content: data.reply });
+  } catch (err) {
+    chat.lastChild.innerText = "❌ Server error";
+  } finally {
+    btn.disabled = false;
+    input.disabled = false;
+  }
 }
