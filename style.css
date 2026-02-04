@@ -36,7 +36,8 @@ body {
 
   margin: 1rem 0px;
 
-  height: calc(100% - 4em - 70px);
+  /* height: calc(100% - 4em - 70px); */
+  height: calc(100% - 70px - 4em);
 }
 
 .user,
@@ -99,4 +100,17 @@ button {
 
   font-weight: bold;
   font-size: 1.2rem;
+}
+
+@media screen and (max-width: 439px) {
+  .container h1 {
+    font-size: 5vw;
+    white-space: nowrap;
+  }
+  #promptInput {
+    font-size: 3vw;
+  }
+  .chat {
+    height: calc(100% - 70px - 4em + 3vw);
+  }
 }
