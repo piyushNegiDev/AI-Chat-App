@@ -2,33 +2,34 @@ import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
 const USE_FAKE_AI = false;
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static(__dirname));
 
-/* -------------------- BASIC RATE LIMIT -------------------- */
 let lastRequestTime = 0;
-const MIN_INTERVAL = 1000; // 1 request / second
+const MIN_INTERVAL = 1000;
 
-/* -------------------- CHAT ENDPOINT -------------------- */
 app.post("/chat", async (req, res) => {
   try {
     const { messages } = req.body;
 
-    /* ---------- Validate request ---------- */
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({
         error: "Invalid messages format",
       });
     }
 
-    /* ---------- Rate limiting ---------- */
     const now = Date.now();
     if (now - lastRequestTime < MIN_INTERVAL) {
       return res.status(429).json({
@@ -37,14 +38,13 @@ app.post("/chat", async (req, res) => {
     }
     lastRequestTime = now;
 
-    /* ---------- Sanitize & trim messages ---------- */
     const safeMessages = messages
       .filter(
         (m) =>
           typeof m?.content === "string" &&
           (m.role === "user" || m.role === "model")
       )
-      .slice(-10); // keep last 10 messages only
+      .slice(-10);
 
     if (safeMessages.length === 0) {
       return res.status(400).json({
@@ -52,20 +52,24 @@ app.post("/chat", async (req, res) => {
       });
     }
 
-    /* ================= FAKE AI MODE ================= */
     if (USE_FAKE_AI) {
-      await new Promise((r) => setTimeout(r, 1200));
+      await new Promise((resolve) => setTimeout(resolve, 1200));
 
       const lastUserMessage = safeMessages.at(-1)?.content ?? "No message";
 
       return res.json({
-        reply: `🤖 Fake AI says: I received your message → "${lastUserMessage}"`,
+        reply: `Fake AI says: I received your message -> "${lastUserMessage}"`,
       });
     }
 
-    /* ================= REAL GEMINI MODE ================= */
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({
+        error: "GEMINI_API_KEY is not configured",
+      });
+    }
+
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -77,7 +81,7 @@ app.post("/chat", async (req, res) => {
         signal: controller.signal,
         body: JSON.stringify({
           contents: safeMessages.map((msg) => ({
-            role: msg.role, // already sanitized
+            role: msg.role,
             parts: [{ text: msg.content }],
           })),
         }),
@@ -88,7 +92,6 @@ app.post("/chat", async (req, res) => {
 
     const data = await response.json();
 
-    /* ---------- Gemini error handling ---------- */
     if (data?.error) {
       console.error("GEMINI ERROR:", data.error);
       return res.status(502).json({
@@ -101,7 +104,6 @@ app.post("/chat", async (req, res) => {
 
     return res.json({ reply: aiReply });
   } catch (err) {
-    /* ---------- Timeout handling ---------- */
     if (err.name === "AbortError") {
       return res.status(504).json({
         error: "AI request timed out",
@@ -115,7 +117,6 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-/* -------------------- SERVER -------------------- */
 app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

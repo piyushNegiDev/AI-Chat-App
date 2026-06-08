@@ -55,7 +55,7 @@ async function send() {
   input.disabled = true;
 
   try {
-    const res = await fetch("http://localhost:3000/chat", {
+    const res = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: messages.slice(-10) }),
@@ -67,14 +67,14 @@ async function send() {
 
     const data = await res.json();
 
-    const reply = data?.reply?.trim() || "⚠️ AI sent an empty response";
+    const reply = data?.reply?.trim() || "AI sent an empty response";
     typingBubble.innerHTML = marked.parse(reply);
 
     if (data?.reply?.trim()) {
       messages.push({ role: "model", content: data.reply });
     }
   } catch (err) {
-    typingBubble.innerText = "❌ Server error";
+    typingBubble.innerText = "Server error";
   } finally {
     btn.disabled = false;
     input.disabled = false;
@@ -100,6 +100,6 @@ function getIndiaTimeReply() {
   });
 
   return `The current time in India is **${time}** on **${date}**.
-  
-  India observes Indian Standard Time (IST), which is UTC+5:30.`;
+
+India observes Indian Standard Time (IST), which is UTC+5:30.`;
 }
